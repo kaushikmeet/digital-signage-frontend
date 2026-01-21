@@ -33,15 +33,14 @@ export default function PlaylistBuilder({ playlistId }) {
   }, []);
 
   useEffect(() => {
+  if (!playlistId) return;
+
+  socket.emit("register-playlist", playlistId);
+  }, [playlistId]); // emit only
+
+  useEffect(() => {
     if (!playlistId) return;
-    socket.emit("register-playlist", playlistId);
     load();
-
-    socket.on("playlist-updated", ({ playlistId: id }) => {
-      if (id === playlistId) load();
-    });
-
-    return () => socket.off("playlist-updated");
   }, [playlistId]);
 
   function moveItem(target) {

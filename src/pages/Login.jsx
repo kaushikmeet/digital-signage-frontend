@@ -1,30 +1,54 @@
 import { useState } from "react";
 import api from "../api/services";
+import { isAuthenticated } from "../utils/auth";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function login() {
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await api.post("/auth/login", {
-        email,
-        password
-      });
-
-      localStorage.setItem("token", res.data.token);
-      window.location.href = "/";
-    } catch (err) {
-      setError(err.response?.data?.error || "Login failed");
-    } finally {
-      setLoading(false);
-    }
+ useEffect(() => {
+  if (isAuthenticated()) {
+    navigate("/", { replace: true });
   }
+}, [navigate]);
+
+  async function login() {
+  setError("");
+  setLoading(true);
+
+  try {
+    const res = await api.post("/auth/login", {
+      email,
+      password,
+    });
+
+    // ✅ SAVE AUTH DATA
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("refreshToken", res.data.refreshToken);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+
+    // ✅ REDIRECT (remember last page)
+    const lastPath = localStorage.getItem("lastPath") || "/";
+    navigate(lastPath, { replace: true });
+
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
+
+    setError(
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      "Invalid email or password"
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/services";
 import socket from "../utils/socket";
-import React from "react";
 import { ChevronUp, ChevronRight } from "lucide-react";
 
 export default function Sidebar() {
@@ -13,25 +12,20 @@ export default function Sidebar() {
     setScreens(res.data || []);
   }
 
-  /* initial load */
   useEffect(() => {
     loadScreens();
   }, []);
 
-  /* socket auto refresh */
   useEffect(() => {
-    function refresh() {
-      console.log("🔄 Screens updated — reloading sidebar");
+    const handler = () => {
+      console.log("🔄 Sidebar refresh");
       loadScreens();
-    }
-
-    socket.on("screens-updated", refresh);
-
-    return () => {
-      socket.off("screens-updated", refresh);
     };
-  }, []);
 
+    socket.on("playlist-updated", handler);
+
+    return () => socket.off("playlist-updated", handler);
+  }, []);
 
   return (
     <aside className="w-72 bg-gray-900 text-white h-screen p-3 overflow-y-auto">

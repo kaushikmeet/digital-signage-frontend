@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../api/services";
 import { isAuthenticated } from "../utils/auth";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,49 +10,44 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
- useEffect(() => {
-  if (isAuthenticated()) {
-    navigate("/", { replace: true });
-  }
-}, [navigate]);
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   async function login() {
-  setError("");
-  setLoading(true);
+    setError("");
+    setLoading(true);
 
-  try {
-    const res = await api.post("/auth/login", {
-      email,
-      password,
-    });
+    try {
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
 
-    // ✅ SAVE AUTH DATA
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("refreshToken", res.data.refreshToken);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("refreshToken", res.data.refreshToken);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-    // ✅ REDIRECT (remember last page)
-    const lastPath = localStorage.getItem("lastPath") || "/";
-    navigate(lastPath, { replace: true });
+      const lastPath = localStorage.getItem("lastPath") || "/";
+      navigate(lastPath, { replace: true });
 
-  } catch (err) {
-    console.error("LOGIN ERROR:", err);
-
-    setError(
-      err.response?.data?.error ||
-      err.response?.data?.message ||
-      "Invalid email or password"
-    );
-  } finally {
-    setLoading(false);
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Invalid email or password"
+      );
+    } finally {
+      setLoading(false);
+    }
   }
-}
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-8">
-        
+
         {/* HEADER */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
@@ -106,8 +100,19 @@ export default function Login() {
           </button>
         </div>
 
+        {/* SIGN UP LINK */}
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-500">Don’t have an account?</span>{" "}
+          <Link
+            to="/register"
+            className="text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Sign up
+          </Link>
+        </div>
+
         {/* FOOTER */}
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-4 text-center text-xs text-gray-400">
           © {new Date().getFullYear()} Digital Signage
         </div>
       </div>

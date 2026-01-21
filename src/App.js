@@ -3,12 +3,13 @@ import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import Screens from "./pages/Screens";
 import Playlists from "./pages/Playlists";
-import PlayerPage from "./pages/PlayerPage";
+// import PlayerPage from "./pages/PlayerPage";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import Unauthorized from "./pages/Unauthorized";
+import ScreenPreview from "./pages/ScreenPreview";
 
 export default function App() {
   return (
@@ -17,7 +18,7 @@ export default function App() {
         {/* PUBLIC */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<SignUp />} />
-        <Route path="/player/:screenId" element={<PlayerPage />} />
+        <Route path="/preview/:screenId" element={<ScreenPreview />} />
 
         {/* AUTH REQUIRED */}
         <Route element={<ProtectedRoute />}>

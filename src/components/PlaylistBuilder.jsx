@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api/services";
 import socket from "../utils/socket";
 import { Upload } from "lucide-react";
+import PlaylistItemSchedule from "./PlaylistItemSchedule";
 
 export default function PlaylistBuilder({ playlistId }) {
   const [media, setMedia] = useState([]);
@@ -12,20 +13,19 @@ export default function PlaylistBuilder({ playlistId }) {
   const [dragIndex, setDragIndex] = useState(null);
 
   async function load() {
-  const res = await api.get(`/playlists/${playlistId}/items`);
-  const itemsWithMedia = await Promise.all(
-    res.data.map(async (item) => {
-      if (typeof item.mediaId === "string") {
-        // fetch media object
-        const mediaRes = await api.get(`/media/${item.mediaId}`);
-        return { ...item, mediaId: mediaRes.data };
-      }
-      return item;
-    })
-  );
-  setItems(itemsWithMedia);
-}
-
+    const res = await api.get(`/playlists/${playlistId}/items`);
+    const itemsWithMedia = await Promise.all(
+      res.data.map(async (item) => {
+        if (typeof item.mediaId === "string") {
+          // fetch media object
+          const mediaRes = await api.get(`/media/${item.mediaId}`);
+          return { ...item, mediaId: mediaRes.data };
+        }
+        return item;
+      }),
+    );
+    setItems(itemsWithMedia);
+  }
 
   /* LOAD MEDIA LIBRARY */
   useEffect(() => {
@@ -33,9 +33,9 @@ export default function PlaylistBuilder({ playlistId }) {
   }, []);
 
   useEffect(() => {
-  if (!playlistId) return;
+    if (!playlistId) return;
 
-  socket.emit("register-playlist", playlistId);
+    socket.emit("register-playlist", playlistId);
   }, [playlistId]); // emit only
 
   useEffect(() => {
@@ -64,24 +64,23 @@ export default function PlaylistBuilder({ playlistId }) {
 
   /* UPLOAD MEDIA */
   async function uploadMedia() {
-  if (!file) return alert("Select a file");
+    if (!file) return alert("Select a file");
 
-  try {
-    const form = new FormData();
-    form.append("file", file);
+    try {
+      const form = new FormData();
+      form.append("file", file);
 
-    const uploadRes = await api.post("/media/upload", form);
+      const uploadRes = await api.post("/media/upload", form);
 
-    // Add new media to the list for instant preview
-    setMedia((prev) => [...prev, uploadRes.data]);
+      // Add new media to the list for instant preview
+      setMedia((prev) => [...prev, uploadRes.data]);
 
-    setFile(null);
-  } catch (err) {
-    console.error(err);
-    alert("Upload failed");
+      setFile(null);
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    }
   }
-}
-
 
   async function addToPlaylist() {
     if (!mediaId) return alert("Select media");
@@ -213,7 +212,14 @@ export default function PlaylistBuilder({ playlistId }) {
               {i.mediaId?.filename}
             </span>
 
-            <span className="text-gray-500">{i.duration}s</span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-gray-500">{i.duration}s</span>
+
+              <PlaylistItemSchedule
+                item={i}
+                onSaved={load} // refresh after save
+              />
+            </div>
 
             <button
               onClick={() => duplicateItem(i)}

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import api from "../api/services";
 import StatCard from "../components/StatCard";
-import PlayerCard from "../components/PlayerCard";
+import ScreensTable from "../components/ScreenTable";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import { Monitor, ListVideo, Image } from "lucide-react";
+import ProofPlayDashboard from "../components/ProofOfDashboard";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -12,6 +13,7 @@ export default function Dashboard() {
     media: 0,
   });
   const [screens, setScreens] = useState([]);
+ 
 
   useEffect(() => {
     async function load() {
@@ -32,6 +34,7 @@ export default function Dashboard() {
 
     load();
   }, []);
+
 
   return (
     <div className="space-y-6">
@@ -59,13 +62,11 @@ export default function Dashboard() {
 
       {/* Screens */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Screens</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {screens.map((screen) => (
-            <PlayerCard key={screen._id} screen={screen} />
-          ))}
+        <div className="relative">
+          <ScreensTable screens={screens} />
         </div>
         <AnalyticsDashboard />
+        <ProofPlayDashboard />
       </div>
     </div>
   );

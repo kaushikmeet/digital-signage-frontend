@@ -1,37 +1,51 @@
 import { useEffect, useState } from "react";
 import api from "../api/services";
 
-function AnalyticsDashboard() {
+export default function AnalyticsDashboard() {
   const [stats, setStats] = useState(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/analytics/summary")
-      .then(res => setStats(res.data))
-      .catch(err => {
-        console.error(err);
-        setError("Unauthorized or session expired");
-      });
+    api.get("/analytics/summary").then(res => {
+      setStats(res.data);
+    });
   }, []);
 
-  if (error) return <p className="text-red-500">{error}</p>;
-  if (!stats) return <p>Loading analytics…</p>;
+  if (!stats) return null;
 
   return (
-    <div className="p-4">
-      <h2 className="text-lg font-semibold">
-        Total Plays: {stats.totalPlays}
-      </h2>
-
-      <h3 className="mt-3 font-medium">Top Media</h3>
-
-      {stats.topMedia.map(m => (
-        <div key={m._id} className="text-sm text-gray-700">
-          {m._id} — {m.plays} plays
+    <div className="space-y-6 mt-6 mb-10">
+      
+      {/* STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl p-6 shadow">
+          <h3 className="text-sm text-gray-500">Total Plays</h3>
+          <p className="text-3xl font-bold">{stats.totalPlays}</p>
         </div>
-      ))}
+
+        <div className="bg-white rounded-xl p-6 shadow">
+          <h3 className="text-sm text-gray-500">Total Screens</h3>
+          <p className="text-3xl font-bold">{stats.totalScreens}</p>
+        </div>
+      </div>
+
+      {/* TOP MEDIA */}
+      <div className="bg-white rounded-xl p-6 shadow">
+        <h3 className="font-semibold mb-3">Top Media</h3>
+
+        {stats.topMedia.length === 0 && (
+          <p className="text-sm text-gray-400">No data yet</p>
+        )}
+
+        {stats.topMedia.map(m => (
+          <div
+            key={m._id}
+            className="flex justify-between text-sm py-1"
+          >
+            <span>Media ID: {m._id}</span>
+            <span className="font-medium">{m.plays} plays</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
-export default AnalyticsDashboard;

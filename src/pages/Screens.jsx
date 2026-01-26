@@ -29,13 +29,22 @@ export default function Screens() {
     load();
   }
 
-  async function assignPlaylist(screenId, playlistId) {
-    await api.post("/screens/assign", {
-      screenId,
-      playlistId
-    });
-    alert("Playlist assigned");
+ async function assignPlaylist(screenId, playlistId) {
+  if (!playlistId) {
+    alert("Please select a playlist first");
+    return;
   }
+
+  await api.post("/screens/assign-playlist", {
+    screenId,
+    playlistId,
+  });
+
+  alert("Playlist assigned");
+  load(); // refresh list so aggregation shows playlist
+}
+
+
 
   return (
     <div className="space-y-6">
@@ -97,8 +106,11 @@ export default function Screens() {
                 </select>
 
                 <button
-                  onClick={() => assignPlaylist(screen._id)}
-                  className="bg-green-600 text-white px-3 rounded"
+                  onClick={() =>
+                    assignPlaylist(screen._id, assign[screen._id])
+                  }
+                  disabled={!assign[screen._id]}
+                  className="bg-green-600 text-white px-3 rounded disabled:opacity-50"
                 >
                   Assign
                 </button>

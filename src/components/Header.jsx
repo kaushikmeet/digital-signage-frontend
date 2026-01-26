@@ -16,7 +16,7 @@ export default function Header() {
       {/* LEFT */}
       <div className="flex items-center gap-3">
         <span className="text-lg font-semibold text-gray-800">
-          Digital Signage
+          <Link to="/">Digital Signage</Link>
         </span>
       </div>
       <div className="flex gap-3">

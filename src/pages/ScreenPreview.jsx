@@ -17,22 +17,17 @@ export default function ScreenPreview() {
   const [fallback, setFallback] = useState(null);
 
   const videoRef = useRef(null);
+  const loggedRef = useRef(null);
 
   /* PLAYER */
-  const { current, remaining, skip, setPaused } = usePlaylistPlayer(items);
-  const currentItem = current ?? null;
+  const { current, remaining, skip, setPaused } =
+    usePlaylistPlayer(items);
 
   /* EMERGENCY ACTIVE CHECK */
   const isEmergencyActive =
     emergency &&
     emergency.mediaId &&
     new Date(emergency.expiresAt).getTime() > Date.now();
-
-  const loadEmergency = (data) => {
-    setEmergency({ active: true, ...data });
-    setPaused(true);
-    videoRef.current?.pause();
-  };
 
   /* LOAD SCREEN */
   useEffect(() => {
@@ -59,10 +54,14 @@ export default function ScreenPreview() {
 
   async function loadPlaylist() {
     try {
-      const res = await api.get(`/playlists/${playlistId}/active-items`);
+      const res = await api.get(
+        `/playlists/${playlistId}/active-items`
+      );
       setItems(res.data || []);
     } catch {
-      const cached = localStorage.getItem(`playlist-cache-${screenId}`);
+      const cached = localStorage.getItem(
+        `playlist-cache-${screenId}`
+      );
       if (cached) setItems(JSON.parse(cached));
     }
   }
@@ -77,15 +76,19 @@ export default function ScreenPreview() {
     }
   }, [items, screenId]);
 
-  /* ANALYTICS */
+  /* ✅ ANALYTICS LOG (AUTO) */
   useEffect(() => {
-    if (!currentItem?.mediaId?._id) return;
+    if (!screenId || !current?.mediaId?._id) return;
+
+    if (loggedRef.current === current.mediaId._id) return;
+    loggedRef.current = current.mediaId._id;
 
     api.post("/analytics/log", {
       screenId,
-      mediaId: currentItem.mediaId._id,
+      mediaId: current.mediaId._id,
+      duration: current.mediaId.duration || 0
     }).catch(() => {});
-  }, [currentItem, screenId]);
+  }, [current, screenId]);
 
   /* HEARTBEAT */
   useEffect(() => {
@@ -118,38 +121,22 @@ export default function ScreenPreview() {
 
   /* EMERGENCY EVENTS */
   useEffect(() => {
-    socket.on("emergency-on", loadEmergency);
+    socket.on("emergency-on", (data) => {
+      setEmergency(data);
+      setPaused(true);
+      videoRef.current?.pause();
+    });
+
     socket.on("emergency-off", () => {
       setEmergency(null);
       setPaused(false);
     });
 
     return () => {
-      socket.off("emergency-on", loadEmergency);
+      socket.off("emergency-on");
       socket.off("emergency-off");
     };
   }, [setPaused]);
-
-  /* EMERGENCY AUTO CLEAR */
-  useEffect(() => {
-    if (!emergency?.expiresAt) return;
-
-    const delay =
-      new Date(emergency.expiresAt).getTime() - Date.now();
-
-    if (delay <= 0) {
-      setEmergency(null);
-      setPaused(false);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setEmergency(null);
-      setPaused(false);
-    }, delay);
-
-    return () => clearTimeout(timeout);
-  }, [emergency, setPaused]);
 
   /* FALLBACK MEDIA */
   useEffect(() => {
@@ -159,12 +146,13 @@ export default function ScreenPreview() {
       .catch(() => {});
   }, [screenId]);
 
+ 
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-4">
-        {screen && (
+      {screen && (
+        <div className="flex justify-between items-center mb-4">
           <div className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
             <div>
               <div className="font-semibold">{screen.name}</div>
@@ -174,27 +162,27 @@ export default function ScreenPreview() {
             </div>
             <ScreenControls screenId={screen._id} />
           </div>
-        )}
 
-        <div className="flex bg-gray-800 rounded-lg overflow-hidden">
-          <button
-            onClick={() => setMode("horizontal")}
-            className={`px-4 py-2 ${
-              mode === "horizontal" ? "bg-indigo-600" : ""
-            }`}
-          >
-            Horizontal
-          </button>
-          <button
-            onClick={() => setMode("vertical")}
-            className={`px-4 py-2 ${
-              mode === "vertical" ? "bg-indigo-600" : ""
-            }`}
-          >
-            Vertical
-          </button>
+          <div className="flex bg-gray-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setMode("horizontal")}
+              className={`px-4 py-2 ${
+                mode === "horizontal" ? "bg-indigo-600" : ""
+              }`}
+            >
+              Horizontal
+            </button>
+            <button
+              onClick={() => setMode("vertical")}
+              className={`px-4 py-2 ${
+                mode === "vertical" ? "bg-indigo-600" : ""
+              }`}
+            >
+              Vertical
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PREVIEW */}
       <div className="flex justify-center mt-6">
@@ -202,39 +190,25 @@ export default function ScreenPreview() {
           className={`relative bg-black rounded-xl overflow-hidden ${
             mode === "horizontal"
               ? "aspect-video w-full max-w-5xl"
-              : "aspect-[9/16] w-[360px] sm:w-[420px]"
+              : "aspect-[9/16] w-[360px]"
           }`}
         >
-          {/* 🚨 EMERGENCY */}
-          {isEmergencyActive && (
-            <>
-              <MediaPlayer media={emergency.mediaId} loop />
-              <div className="absolute top-4 left-4 bg-red-600 px-4 py-1 rounded-full text-xs animate-pulse">
-                🚨 Emergency Broadcast
-              </div>
-            </>
-          )}
-
-          {/* ▶ NORMAL PLAY */}
-          {!isEmergencyActive && current?.mediaId && (
+          {isEmergencyActive ? (
+            <MediaPlayer media={emergency.mediaId} loop />
+          ) : current?.mediaId ? (
             <MediaPlayer
               media={current.mediaId}
               ref={videoRef}
-              loop={false}
             />
-          )}
-
-          {/* TIMER */}
-          {current && !isEmergencyActive && (
-            <div className="absolute top-3 right-3 bg-black/70 text-xs px-3 py-1 rounded-full">
-              ⏱ {remaining}s
+          ) : (
+            <div className="text-gray-400 flex items-center justify-center h-full">
+              No active media scheduled
             </div>
           )}
 
-          {/* EMPTY STATE */}
-          {!items.length && !emergency && (
-            <div className="text-gray-400 flex items-center justify-center h-full">
-              No active media scheduled
+          {current && !isEmergencyActive && (
+            <div className="absolute top-3 right-3 bg-black/70 text-xs px-3 py-1 rounded-full">
+              ⏱ {remaining}s
             </div>
           )}
         </div>

@@ -19,10 +19,16 @@ export default function PlaylistItemSchedule({ item }) {
   }
 
   async function save() {
+    const toMinutes = (time) => {
+      if (!time) return null;
+      const [h, m] = time.split(":");
+      return Number(h) * 60 + Number(m);
+    };
+
     await api.put(`/playlists/${item._id}/schedule`, {
       days,
-      startTime: startTime ? new Date(startTime) : null,
-      endTime: endTime ? new Date(endTime) : null
+      startTime: toMinutes(startTime),
+      endTime: toMinutes(endTime)
     });
     alert("Schedule saved");
   }

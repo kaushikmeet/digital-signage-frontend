@@ -5,6 +5,9 @@ import socket from "../utils/socket";
 import usePlaylistPlayer from "../hooks/usePlaylistPlayer";
 import ScreenControls from "../components/ScreenControls";
 import MediaPlayer from "../components/MediaPlayer";
+import MultiZoneScreen from "../components/MultiZoneScreen";
+import ZoneEditor from "../components/screens/ZoneEditor";
+import ZonePresetPicker from "../components/screens/ZonePresetPicker";
 
 export default function ScreenPreview() {
   const { screenId } = useParams();
@@ -14,26 +17,27 @@ export default function ScreenPreview() {
   const [items, setItems] = useState([]);
   const [playlistId, setPlaylistId] = useState(null);
   const [emergency, setEmergency] = useState(null);
-  const [fallback, setFallback] = useState(null);
+  const [zones, setZones] = useState([]);
 
-  const videoRef = useRef(null);
+  const containerRef = useRef(null);
   const loggedRef = useRef(null);
 
   /* PLAYER */
   const { current, remaining, skip, setPaused } =
     usePlaylistPlayer(items);
 
-  /* EMERGENCY ACTIVE CHECK */
+  /* EMERGENCY CHECK */
   const isEmergencyActive =
     emergency &&
     emergency.mediaId &&
     new Date(emergency.expiresAt).getTime() > Date.now();
 
-  /* LOAD SCREEN */
+  /* LOAD SCREEN (single source of truth) */
   useEffect(() => {
     api.get(`/screens/${screenId}`).then((res) => {
       setScreen(res.data);
       setPlaylistId(res.data.playlistId);
+      setZones(res.data.zones || []);
     });
   }, [screenId]);
 
@@ -41,142 +45,71 @@ export default function ScreenPreview() {
   useEffect(() => {
     if (!playlistId) return;
 
+    loadPlaylist();
+    socket.emit("register-playlist", playlistId);
+
     const handler = ({ playlistId: id }) => {
       if (id === playlistId) loadPlaylist();
     };
 
-    loadPlaylist();
-    socket.emit("register-playlist", playlistId);
     socket.on("playlist-updated", handler);
-
     return () => socket.off("playlist-updated", handler);
   }, [playlistId]);
 
   async function loadPlaylist() {
-    try {
-      const res = await api.get(
-        `/playlists/${playlistId}/active-items`
-      );
-      setItems(res.data || []);
-    } catch {
-      const cached = localStorage.getItem(
-        `playlist-cache-${screenId}`
-      );
-      if (cached) setItems(JSON.parse(cached));
-    }
+    const res = await api.get(`/playlists/${playlistId}/active-items`);
+    setItems(res.data || []);
   }
-
-  /* CACHE */
-  useEffect(() => {
-    if (items.length) {
-      localStorage.setItem(
-        `playlist-cache-${screenId}`,
-        JSON.stringify(items)
-      );
-    }
-  }, [items, screenId]);
-
-  /* ✅ ANALYTICS LOG (AUTO) */
-  useEffect(() => {
-    if (!screenId || !current?.mediaId?._id) return;
-
-    if (loggedRef.current === current.mediaId._id) return;
-    loggedRef.current = current.mediaId._id;
-
-    api.post("/analytics/log", {
-      screenId,
-      mediaId: current.mediaId._id,
-      duration: current.mediaId.duration || 0
-    }).catch(() => {});
-  }, [current, screenId]);
 
   /* HEARTBEAT */
   useEffect(() => {
     socket.emit("register-screen", screenId);
-
-    const interval = setInterval(() => {
+    const i = setInterval(() => {
       socket.emit("screen-heartbeat", screenId);
     }, 5000);
-
-    return () => clearInterval(interval);
+    return () => clearInterval(i);
   }, [screenId]);
 
-  /* REMOTE CONTROLS */
-  useEffect(() => {
-    const handler = (action) => {
-      if (action === "pause") {
-        videoRef.current?.pause();
-        setPaused(true);
-      }
-      if (action === "play") {
-        videoRef.current?.play();
-        setPaused(false);
-      }
-      if (action === "skip") skip();
-    };
+function applyPreset(preset) {
+  const zones = preset.zones.map(z => ({
+    name: z.name,
+    x: z.x,
+    y: z.y,
+    w: z.w,
+    h: z.h,
+    zIndex: z.zIndex ?? 1,
+    playlistId: null,
+    fallbackMediaId: null
+  }));
 
-    socket.on("player-control", handler);
-    return () => socket.off("player-control", handler);
-  }, [skip, setPaused]);
+  setZones(zones);
 
-  /* EMERGENCY EVENTS */
-  useEffect(() => {
-    socket.on("emergency-on", (data) => {
-      setEmergency(data);
-      setPaused(true);
-      videoRef.current?.pause();
-    });
+  api.put(`/screens/${screenId}/zones`, { zones });
+}
 
-    socket.on("emergency-off", () => {
-      setEmergency(null);
-      setPaused(false);
-    });
-
-    return () => {
-      socket.off("emergency-on");
-      socket.off("emergency-off");
-    };
-  }, [setPaused]);
-
-  /* FALLBACK MEDIA */
-  useEffect(() => {
-    api
-      .get(`/screens/${screenId}/fallback-media`)
-      .then((res) => setFallback(res.data))
-      .catch(() => {});
-  }, [screenId]);
-
- 
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       {/* HEADER */}
       {screen && (
         <div className="flex justify-between items-center mb-4">
-          <div className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
-            <div>
-              <div className="font-semibold">{screen.name}</div>
-              <div className="text-xs text-gray-400">
-                {screen.location || "No location"}
-              </div>
+          <div className="bg-gray-800 rounded-xl p-4">
+            <div className="font-semibold">{screen.name}</div>
+            <div className="text-xs text-gray-400">
+              {screen.location || "No location"}
             </div>
-            <ScreenControls screenId={screen._id} />
           </div>
-
+           <ZonePresetPicker onApply={applyPreset} />
           <div className="flex bg-gray-800 rounded-lg overflow-hidden">
             <button
               onClick={() => setMode("horizontal")}
-              className={`px-4 py-2 ${
-                mode === "horizontal" ? "bg-indigo-600" : ""
-              }`}
+              className={`px-4 py-2 ${mode === "horizontal" ? "bg-indigo-600" : ""}`}
             >
               Horizontal
             </button>
             <button
               onClick={() => setMode("vertical")}
-              className={`px-4 py-2 ${
-                mode === "vertical" ? "bg-indigo-600" : ""
-              }`}
+              className={`px-4 py-2 ${mode === "vertical" ? "bg-indigo-600" : ""}`}
             >
               Vertical
             </button>
@@ -187,6 +120,7 @@ export default function ScreenPreview() {
       {/* PREVIEW */}
       <div className="flex justify-center mt-6">
         <div
+          ref={containerRef}
           className={`relative bg-black rounded-xl overflow-hidden ${
             mode === "horizontal"
               ? "aspect-video w-full max-w-5xl"
@@ -194,12 +128,18 @@ export default function ScreenPreview() {
           }`}
         >
           {isEmergencyActive ? (
-            <MediaPlayer media={emergency.mediaId} loop />
+            <MediaPlayer media={emergency.mediaId} />
+          ) : zones.length ? (
+            <>
+              <MultiZoneScreen zones={zones} />
+              <ZoneEditor
+                zones={zones}
+                setZones={setZones}
+                containerRef={containerRef}
+              />
+            </>
           ) : current?.mediaId ? (
-            <MediaPlayer
-              media={current.mediaId}
-              ref={videoRef}
-            />
+            <MediaPlayer media={current.mediaId} />
           ) : (
             <div className="text-gray-400 flex items-center justify-center h-full">
               No active media scheduled

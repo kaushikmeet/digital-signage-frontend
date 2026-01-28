@@ -28,7 +28,7 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="w-72 bg-gray-900 text-white h-screen p-3 overflow-y-auto">
+    <aside className="w-62 bg-gray-900 text-white h-screen p-3 overflow-y-auto">
       <h2 className="text-lg font-semibold mb-3">📺 Screens</h2>
 
       {screens.map((screen) => (

@@ -1,15 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import MediaPlayer from './MediaPlayer';
+import { useEffect, useRef } from "react";
+import api from "../api/services";
+import usePlaylistPlayer from "../hooks/usePlaylistPlayer";
+import MediaPlayer from "./MediaPlayer";
 
-function ZonePlayer({ playlistId }) {
-  const [items, setItems] = useState([]);
+export default function ZonePlayer({ screenId, zoneId, items }) {
+  const { current } = usePlaylistPlayer(items);
+  const loggedRef = useRef(null);
 
+  /* ✅ ANALYTICS PER ZONE */
   useEffect(() => {
-    fetch(`/playlists/${playlistId}/active-items`)
-      .then(res => res.json())
-      .then(setItems);
-  }, [playlistId]);
+    if (!current?.mediaId?._id) return;
 
-  return <MediaPlayer items={items} />;
+    // prevent duplicate logs
+    if (loggedRef.current === current.mediaId._id) return;
+    loggedRef.current = current.mediaId._id;
+
+    api.post("/analytics/log", {
+      screenId,
+      mediaId: current.mediaId._id,
+      zoneId
+    }).catch(() => {});
+  }, [current, screenId, zoneId]);
+
+  if (!current?.mediaId) return null;
+
+  return <MediaPlayer media={current.mediaId} />;
 }
-export default ZonePlayer;

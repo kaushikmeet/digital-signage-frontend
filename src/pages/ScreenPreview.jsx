@@ -7,7 +7,10 @@ import ScreenControls from "../components/ScreenControls";
 import MediaPlayer from "../components/MediaPlayer";
 import MultiZoneScreen from "../components/MultiZoneScreen";
 import ZoneEditor from "../components/screens/ZoneEditor";
-import ZonePresetPicker from "../components/screens/ZonePresetPicker";
+import ZonePresetSelector from "../components/screens/ZonePresetPicker";
+import {v4 as uuid} from "uuid";
+import { useScreenMode } from "../context/ScreenModeContext";
+
 
 export default function ScreenPreview() {
   const { screenId } = useParams();
@@ -18,6 +21,8 @@ export default function ScreenPreview() {
   const [playlistId, setPlaylistId] = useState(null);
   const [emergency, setEmergency] = useState(null);
   const [zones, setZones] = useState([]);
+  const { mode: screenMode, toggleMode } = useScreenMode();
+
 
   const containerRef = useRef(null);
   const loggedRef = useRef(null);
@@ -71,21 +76,26 @@ export default function ScreenPreview() {
   }, [screenId]);
 
 function applyPreset(preset) {
-  const zones = preset.zones.map(z => ({
+  const zonesPrepared = preset.zones.map(z => ({
+    tempId: uuid(),
     name: z.name,
     x: z.x,
     y: z.y,
     w: z.w,
     h: z.h,
-    zIndex: z.zIndex ?? 1,
+    zIndex: z.zIndex || 1,
     playlistId: null,
-    fallbackMediaId: null
+    fallbackMediaId: null,
+    locked: false
   }));
 
-  setZones(zones);
+  setZones(zonesPrepared);
 
-  api.put(`/screens/${screenId}/zones`, { zones });
+  api.put(`/screens/${screenId}/zones`, {
+    zones: zonesPrepared.map(({tempId, ...z})=> z)
+  });
 }
+
 
 
   return (
@@ -99,7 +109,7 @@ function applyPreset(preset) {
               {screen.location || "No location"}
             </div>
           </div>
-           <ZonePresetPicker onApply={applyPreset} />
+
           <div className="flex bg-gray-800 rounded-lg overflow-hidden">
             <button
               onClick={() => setMode("horizontal")}
@@ -117,6 +127,24 @@ function applyPreset(preset) {
         </div>
       )}
 
+      <div className="flex justify-between gap-2">
+      <div className="flex gap-5 flex-col">
+        <button onClick={toggleMode} className="px-3 py-1 rounded bg-indigo-600">
+          {screenMode === "preview" ? "Live Preview" : "Preview Mode"}
+        </button>
+        <ScreenControls
+          mode={mode}
+          setMode={setMode}
+          skip={skip}
+          setPaused={setPaused}
+        />
+        </div>
+        <div>
+          <ZonePresetSelector
+          onApply={applyPreset}
+        />
+        </div>
+      </div>
       {/* PREVIEW */}
       <div className="flex justify-center mt-6">
         <div
@@ -137,6 +165,7 @@ function applyPreset(preset) {
                 setZones={setZones}
                 containerRef={containerRef}
               />
+              <ZonePresetSelector onApply={perest => applyPreset(perest)}/>
             </>
           ) : current?.mediaId ? (
             <MediaPlayer media={current.mediaId} />

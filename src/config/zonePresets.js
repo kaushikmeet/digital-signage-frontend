@@ -1,7 +1,14 @@
+import {
+  Monitor,
+  Columns,
+  LayoutPanelTop
+} from "lucide-react";
+
 export const ZONE_PRESETS = [
   {
     id: "fullscreen",
     name: "Fullscreen",
+    icon: Monitor,
     zones: [
       {
         name: "Main",
@@ -17,6 +24,7 @@ export const ZONE_PRESETS = [
   {
     id: "video-sidebar",
     name: "Video + Sidebar",
+    icon: Columns,
     zones: [
       {
         name: "Main Video",
@@ -40,6 +48,7 @@ export const ZONE_PRESETS = [
   {
     id: "header-footer",
     name: "Header + Content + Footer",
+    icon: LayoutPanelTop,
     zones: [
       {
         name: "Header",

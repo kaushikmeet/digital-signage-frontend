@@ -1,28 +1,57 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import api from "../api/services";
 import usePlaylistPlayer from "../hooks/usePlaylistPlayer";
 import MediaPlayer from "./MediaPlayer";
+// import ZoneContentResolver from "./ZoneContentResolver";
+import LiveWidgetRenderer from "./LiveWidgetRenderer";
 
-export default function ZonePlayer({ screenId, zoneId, items }) {
-  const { current } = usePlaylistPlayer(items);
-  const loggedRef = useRef(null);
+export default function ZonePlayer({
+  screenId,
+  zone,
+  activeTimelinePlaylist
+}) {
+  const [playlistItems, setPlaylistItems] = useState([]);
+  const [fallback, setFallback] = useState(null);
 
-  /* ✅ ANALYTICS PER ZONE */
+  const playlistId =
+    activeTimelinePlaylist ??
+    zone?.playlistId ??
+    null;
+
   useEffect(() => {
-    if (!current?.mediaId?._id) return;
+    if (!playlistId) return;
+    api
+      .get(`/playlists/${playlistId}/active-items`)
+      .then(res => setPlaylistItems(res.data || []));
+  }, [playlistId]);
 
-    // prevent duplicate logs
-    if (loggedRef.current === current.mediaId._id) return;
-    loggedRef.current = current.mediaId._id;
+  useEffect(() => {
+    if (!zone?.fallbackMediaId) return;
+    api
+      .get(`/media/${zone.fallbackMediaId}`)
+      .then(res => setFallback(res.data));
+  }, [zone?.fallbackMediaId]);
 
-    api.post("/analytics/log", {
-      screenId,
-      mediaId: current.mediaId._id,
-      zoneId
-    }).catch(() => {});
-  }, [current, screenId, zoneId]);
+  const itemsToPlay =
+    playlistItems.length
+      ? playlistItems
+      : fallback
+      ? [{ mediaId: fallback }]
+      : [];
 
-  if (!current?.mediaId) return null;
+  const { current } = usePlaylistPlayer(itemsToPlay);
 
-  return <MediaPlayer media={current.mediaId} />;
+  if (!current?.mediaId && !zone?.widget) return null;
+
+  return (
+    <>
+      {zone?.widget && (
+        <LiveWidgetRenderer widget={zone.widget} />
+      )}
+
+      {current?.mediaId && (
+        <MediaPlayer media={current.mediaId} />
+      )}
+    </>
+  );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/services";
 
-export default function ZoneAnalyticsOverlay({ zoneId, impressions }) {
+export default function ZoneAnalyticsOverlay({ zoneId, impressions,zoneStats }) {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export default function ZoneAnalyticsOverlay({ zoneId, impressions }) {
       ▶ {stats.plays} | ⏱ {stats.duration}s
     </div>
      <div className="absolute bottom-1 right-1 text-xs bg-black/70 px-2 py-1 rounded">
-      👁 {impressions}
+      👁 {zoneStats.impressions}
     </div>
     </>
   );

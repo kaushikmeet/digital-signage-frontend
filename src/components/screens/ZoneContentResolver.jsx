@@ -1,63 +1,41 @@
 import usePlaylistPlayer from "../../hooks/usePlaylistPlayer";
-import LiveWidgetRenderer from "../LiveWidgetRenderer";
 import MediaPlayer from "../MediaPlayer";
+import LiveWidgetRenderer from "../LiveWidgetRenderer";
 
-/**
- * Props:
- * zone
- * screenId
- * playlistItemsMap { playlistId: [] }
- */
 export default function ZoneContentResolver({
   zone,
-  playlistItems = []
+  playlistItems = [],
+  groupPlaylistItems = [],
+  fallbackMedia
 }) {
-  /* ---------------- TIMELINE RESOLUTION ---------------- */
+  /* ---------------- RESOLVE ITEMS (NO HOOKS HERE) ---------------- */
 
-  function getActiveTimelineSlot() {
-    if (!zone.timeline?.length) return null;
+  const resolvedItems =
+    playlistItems.length
+      ? playlistItems
+      : groupPlaylistItems.length
+      ? groupPlaylistItems
+      : fallbackMedia
+      ? [{ mediaId: fallbackMedia }]
+      : [];
 
-    const now = new Date();
-    const mins = now.getHours() * 60 + now.getMinutes();
+  /* ---------------- HOOK (ALWAYS CALLED) ---------------- */
 
-    return zone.timeline.find(slot => {
-      const [sh, sm] = slot.start.split(":").map(Number);
-      const [eh, em] = slot.end.split(":").map(Number);
-
-      const start = sh * 60 + sm;
-      const end = eh * 60 + em;
-
-      return mins >= start && mins < end;
-    });
-  }
-
-  const activeSlot = getActiveTimelineSlot();
-  const activePlaylistId =
-    activeSlot?.playlistId || zone.playlistId;
-
-  /* ---------------- PLAYLIST PLAYER ---------------- */
-
-  const items = playlistItems || [];
-  const { current } = usePlaylistPlayer(items);
+  const { current } = usePlaylistPlayer(resolvedItems);
 
   /* ---------------- RENDER PRIORITY ---------------- */
 
-  // 1️⃣ Live widget
-  if (zone.widget) {
+  // 1️⃣ Live widget (highest priority)
+  if (zone?.widget) {
     return <LiveWidgetRenderer widget={zone.widget} />;
   }
 
-  // 2️⃣ Playlist content
+  // 2️⃣ Playlist / fallback media
   if (current?.mediaId) {
     return <MediaPlayer media={current.mediaId} />;
   }
 
-  // 3️⃣ Fallback media
-  if (zone.fallbackMedia) {
-    return <MediaPlayer media={zone.fallbackMedia} />;
-  }
-
-  // 4️⃣ Empty state
+  // 3️⃣ Empty state
   return (
     <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
       No content
